@@ -22,7 +22,7 @@ const {
 
 // 1. Define chains
 const chains = [bsc];
-const projectId = "2aca272d18deb10ff748260da5f78bfd"; // ✅ Replace with your own project ID if needed
+const projectId = "2aca272d18deb10ff748260da5f78bfd"; // Replace with your actual project ID if needed
 
 // 2. Configure wagmi client
 const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
@@ -54,7 +54,7 @@ export const web3Modal = new Web3Modal(
   ethereumClient
 );
 
-// Utility function to parse BNB value to Wei
+// Utility: Parse BNB to Wei
 export function parseEther(value) {
   let str = String(Number(value) * 10 ** 9);
   return str + "000000000";
