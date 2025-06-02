@@ -1,62 +1,66 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BNB Withdraw DApp</title>
-  <script type="module" src="wallet.js"></script>
   <style>
     * {
       box-sizing: border-box;
-    }body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-  background-color: #f9f9f9;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 1rem;
-}
-
-w3m-core-button {
-  margin: 20px 0;
-}
-
-#withdrawBtn {
-  background-color: #f0b90b;
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  font-size: 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-#message {
-  margin-top: 1.5rem;
-  font-size: 1rem;
-  font-weight: bold;
-  color: #d9534f;
-  text-align: center;
-}
-
-@media (max-width: 600px) {
-  #withdrawBtn {
-    width: 100%;
-    padding: 1rem;
-    font-size: 1.1rem;
-  }
-}
-
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    w3m-core-button {
+      margin: 20px 0;
+    }
+    #withdrawBtn {
+      background-color: #f0b90b;
+      color: #fff;
+      border: none;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+    #message {
+      margin-top: 1.5rem;
+      font-weight: bold;
+      font-size: 1rem;
+      color: #d9534f;
+      text-align: center;
+      min-height: 1.2em;
+    }
+    @media (max-width: 600px) {
+      #withdrawBtn {
+        width: 100%;
+        font-size: 1.1rem;
+        padding: 1rem;
+      }
+    }
   </style>
 </head>
-<body>  <!-- WalletConnect Button --><w3m-core-button></w3m-core-button>
+<body>
 
-  <!-- Withdraw Button --><button id="withdrawBtn" style="display: none;">Withdraw BNB</button>
+  <!-- Wallet connect button -->
+  <w3m-core-button></w3m-core-button>
 
-  <!-- Message Display -->  <div id="message"></div>  <!-- Withdraw Script -->  <script type="module">
+  <!-- Withdraw button -->
+  <button id="withdrawBtn">Withdraw BNB</button>
+
+  <!-- Status and error messages -->
+  <div id="message"></div>
+
+  <script type="module">
     import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
 
     const withdrawBtn = document.getElementById("withdrawBtn");
@@ -114,7 +118,7 @@ w3m-core-button {
 
         const { hash } = await sendTransaction({
           to: recipient,
-          value: valueWei
+          value: valueWei,
         });
 
         message.textContent = `Transaction sent! Hash: ${hash}`;
@@ -126,5 +130,6 @@ w3m-core-button {
 
     withdrawBtn.addEventListener("click", withdrawBNB);
     setInterval(checkWallet, 1000);
-  </script></body>
+  </script>
+</body>
 </html>
