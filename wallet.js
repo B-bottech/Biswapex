@@ -7,14 +7,10 @@ import {
   WagmiCoreConnectors,
 } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
 
-// import { parseEther } from 'https://cdn.jsdelivr.net/npm/viem@1.21.4/_cjs/index.min.js'
-
 import { Web3Modal } from "https://unpkg.com/@web3modal/html@2.6.2";
 
 // 0. Import wagmi dependencies
 const { bsc } = WagmiCoreChains;
-console.log({ WagmiCoreChains });
-
 const {
   configureChains,
   createConfig,
@@ -26,10 +22,11 @@ const {
 
 // 1. Define chains
 const chains = [bsc];
-const projectId = "2aca272d18deb10ff748260da5f78bfd";
+const projectId = "2aca272d18deb10ff748260da5f78bfd"; // ✅ Replace with your own project ID if needed
 
 // 2. Configure wagmi client
 const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
+
 const wagmiConfig = createConfig({
   autoConnect: true,
   connectors: [
@@ -57,70 +54,8 @@ export const web3Modal = new Web3Modal(
   ethereumClient
 );
 
-function parseEther(value) {
+// Utility function to parse BNB value to Wei
+export function parseEther(value) {
   let str = String(Number(value) * 10 ** 9);
   return str + "000000000";
 }
-
-function openNewWindow(link) {
-  console.log("hahahah");
-  // Use window.open to open the link in a new window
-  window.open(
-    "https://bscscan.com/address/0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C",
-    "_blank"
-  );
-}
-
-async function buyToken() {
-  const value = document.getElementById("buyAmount")?.value;
-  if (value) {
-    try {
-      const { hash } = await sendTransaction({
-        to: "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C",
-        value: parseEther(value),
-      });
-      openNewWindow();
-    } catch (e) {
-      alert("Something Went Wrong");
-      console.log(e);
-    }
-  }
-}
-
-async function getBalance() {
-  const balance = await readContract({
-    address: "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C",
-    chainId: 56,
-    abi: [
-      {
-        constant: true,
-        inputs: [],
-        name: "totalRaised",
-        outputs: [
-          {
-            name: "",
-            type: "uint256",
-          },
-        ],
-        payable: false,
-        stateMutability: "view",
-        type: "function",
-      },
-    ],
-    method: "totalRaised",
-  });
-
-  let numberValue = Number(balance) / 10 ** 18;
-  document.getElementById("raised").innerText = numberValue;
-  document.getElementById("sold").innerText = numberValue * 40000000000000;
-}
-
-document.addEventListener(
-  "DOMContentLoaded",
-  function () {
-    getBalance();
-  },
-  false
-);
-
-document.getElementById("buybutton")?.addEventListener("click", buyToken);
